@@ -44,9 +44,9 @@ def startup():
 
 @app.get("/")
 def raiz():
-    return {"Mensagem": "API do E-Commerce no ar!"}
+    return {"Mensagem": "API da BB Garage está funcionando! chama bbzada!!!!!"}
 
 
 @app.get("/status")
 def status():
-    return {"status": "OK", "Versão": "0.1"}
+    return {"status": "OK", "Versão": "3.1"}

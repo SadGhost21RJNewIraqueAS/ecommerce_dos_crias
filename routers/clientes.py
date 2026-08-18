@@ -1,23 +1,30 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 
 from database import SessionLocal
 from models.cliente import Cliente
+from models.usuario import Usuario
 from schemas.cliente import ClienteEntrada, ClientePatch, ClienteResposta
+from segurança import require_roles
 
 
 router = APIRouter(prefix="/clientes", tags=["Clientes"])
 
 
 @router.get("/", response_model=list[ClienteResposta])
-def listar_clientes():
+def listar_clientes(
+    usuario_logado: Usuario = Depends(require_roles("gerente", "admin")),
+):
     with SessionLocal() as session:
         consulta = select(Cliente)
         return session.scalars(consulta).all()
 
 
 @router.get("/{cliente_id}", response_model=ClienteResposta)
-def buscar_por_id_cliente(cliente_id: int):
+def buscar_por_id_cliente(
+    cliente_id: int,
+    usuario_logado: Usuario = Depends(require_roles("gerente", "admin")),
+):
     with SessionLocal() as session:
         cliente = session.get(Cliente, cliente_id)
         if cliente is None:
