@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 
 from database import SessionLocal
+from models.categoria import Categoria
 from models.produto import Produto
 from models.usuario import Usuario
 from schemas.produto import ProdutoEntrada, ProdutoPatch, ProdutoResposta
@@ -35,14 +36,18 @@ def criar_produto(
     produto: ProdutoEntrada,
     usuario_logado: Usuario = Depends(require_roles("gerente", "admin")),
 ):
-    novo_produto = Produto(
-        categoria_id=produto.categoria_id,
-        nome=produto.nome,
-        descricao=produto.descricao,
-        valor_produto=produto.valor_produto,
-        estoque=produto.estoque,
-    )
     with SessionLocal() as session:
+        categoria = session.get(Categoria, produto.categoria_id)
+        if categoria is None:
+            raise HTTPException(status_code=404, detail="Categoria não encontrada")
+
+        novo_produto = Produto(
+            categoria_id=produto.categoria_id,
+            nome=produto.nome,
+            descricao=produto.descricao,
+            valor_produto=produto.valor_produto,
+            estoque=produto.estoque,
+        )
         session.add(novo_produto)
         session.commit()
         session.refresh(novo_produto)
@@ -60,7 +65,13 @@ def atualizar_produto(
         if produto_db is None:
             raise HTTPException(status_code=404, detail="Produto não encontrado")
 
-        for campo, valor in produto.model_dump(exclude_unset=True).items():
+        dados = produto.model_dump(exclude_unset=True)
+        if "categoria_id" in dados and dados["categoria_id"] is not None:
+            categoria = session.get(Categoria, dados["categoria_id"])
+            if categoria is None:
+                raise HTTPException(status_code=404, detail="Categoria não encontrada")
+
+        for campo, valor in dados.items():
             setattr(produto_db, campo, valor)
 
         session.commit()

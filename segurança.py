@@ -15,7 +15,7 @@ SECRET_KEY = os.getenv(
     "bb-garage-secret-key-dev-2026-strong-token-secret",
 )
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60
+ACCESS_TOKEN_EXPIRE_MINUTES = 15
 
 oauth2_scheme = HTTPBearer()
 

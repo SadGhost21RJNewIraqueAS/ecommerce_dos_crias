@@ -127,6 +127,43 @@ class AuthTests(unittest.TestCase):
         })
         self.assertEqual(usuario.nome, "Maria")
 
+    def test_produto_nao_pode_ser_criado_sem_categoria_existente(self):
+        client = TestClient(app)
+        original_env = os.getenv("APP_ENV")
+        os.environ["APP_ENV"] = "test"
+
+        try:
+            seed = client.post(
+                "/auth/dev/seed-admin",
+                params={
+                    "email": "admin_categoria@teste.local",
+                    "username": "admin_categoria",
+                    "senha": "admin123",
+                },
+            )
+            self.assertEqual(seed.status_code, 201)
+
+            token = seed.json()["access_token"]
+            response = client.post(
+                "/produtos/",
+                json={
+                    "categoria_id": 9999,
+                    "nome": "Produto teste",
+                    "descricao": "Produto sem categoria válida",
+                    "valor_produto": 49.9,
+                    "estoque": 10,
+                },
+                headers={"Authorization": f"Bearer {token}"},
+            )
+
+            self.assertEqual(response.status_code, 404)
+            self.assertIn("Categoria", response.json()["detail"])
+        finally:
+            if original_env is None:
+                os.environ.pop("APP_ENV", None)
+            else:
+                os.environ["APP_ENV"] = original_env
+
 
 if __name__ == "__main__":
     unittest.main()

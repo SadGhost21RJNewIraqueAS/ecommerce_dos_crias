@@ -1,8 +1,16 @@
-from sqlalchemy import create_engine, inspect, text
+from sqlalchemy import create_engine, event, inspect, text
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
 URL_BANCO = "sqlite:///bb_garage.db"
 engine = create_engine(URL_BANCO, connect_args={"check_same_thread": False})
+
+
+@event.listens_for(engine, "connect")
+def set_sqlite_pragma(dbapi_connection, connection_record):
+    cursor = dbapi_connection.cursor()
+    cursor.execute("PRAGMA foreign_keys=ON")
+    cursor.close()
+
 
 SessionLocal = sessionmaker(bind=engine, expire_on_commit=False)
 
@@ -14,19 +22,15 @@ def ensure_usuario_columns(engine):
             return
 
         colunas = {coluna["name"]: coluna for coluna in insp.get_columns("usuario")}
-        campos_necessarios = {"username", "email", "senha_hash", "role", "cpf", "telefone", "is_active"}
-        precisa_rebuild = any(campo not in colunas for campo in campos_necessarios)
-
-        if not precisa_rebuild:
-            precisa_rebuild = (
-                colunas.get("cpf", {}).get("nullable", True) is False
-                or colunas.get("role", {}).get("nullable", True) is False
-            )
+        campos_necessarios = {"username", "email", "senha_hash", "role", "is_active"}
+        campos_removidos = {"cpf", "telefone"}
+        precisa_rebuild = any(campo not in colunas for campo in campos_necessarios) or any(
+            campo in colunas for campo in campos_removidos
+        )
 
         if not precisa_rebuild:
             return
 
-        existentes = list(colunas.keys())
         conn.execute(text('ALTER TABLE usuario RENAME TO usuario_antigo'))
         conn.execute(
             text(
@@ -37,8 +41,6 @@ def ensure_usuario_columns(engine):
                     username VARCHAR(50) NOT NULL UNIQUE,
                     email VARCHAR(255) NOT NULL UNIQUE,
                     senha_hash VARCHAR(255) NOT NULL,
-                    cpf VARCHAR(11),
-                    telefone VARCHAR(20),
                     role VARCHAR(20) NOT NULL DEFAULT 'cliente',
                     is_active BOOLEAN NOT NULL DEFAULT 1
                 )
@@ -49,12 +51,10 @@ def ensure_usuario_columns(engine):
         campos_insert = [
             "id",
             "nome",
+            "username",
             "email",
             "senha_hash",
-            "cpf",
-            "telefone",
             "role",
-            "username",
             "is_active",
         ]
 
@@ -64,18 +64,14 @@ def ensure_usuario_columns(engine):
                 valores.append("id")
             elif campo == "nome":
                 valores.append("nome")
+            elif campo == "username":
+                valores.append("COALESCE(username, 'user_' || CAST(id AS VARCHAR))")
             elif campo == "email":
                 valores.append("email")
             elif campo == "senha_hash":
                 valores.append("senha_hash")
-            elif campo == "cpf":
-                valores.append("cpf")
-            elif campo == "telefone":
-                valores.append("telefone")
             elif campo == "role":
                 valores.append("COALESCE(role, 'cliente')")
-            elif campo == "username":
-                valores.append("COALESCE(username, 'user_' || CAST(id AS VARCHAR))")
             elif campo == "is_active":
                 valores.append("COALESCE(is_active, 1)")
 
