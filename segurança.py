@@ -4,7 +4,7 @@ from hashlib import pbkdf2_hmac
 
 import jwt
 from fastapi import Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select
 
 from database import SessionLocal
@@ -17,7 +17,7 @@ SECRET_KEY = os.getenv(
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
+oauth2_scheme = HTTPBearer()
 
 
 def get_password_hash(password: str) -> str:
@@ -50,12 +50,16 @@ def decode_access_token(token: str):
     return jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
 
 
-def get_current_user(token: str = Depends(oauth2_scheme)) -> Usuario:
+def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(oauth2_scheme)) -> Usuario:
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Token inválido ou expirado",
         headers={"WWW-Authenticate": "Bearer"},
     )
+    token = credentials.credentials if credentials else None
+    if token is None:
+        raise credentials_exception
+
     try:
         payload = decode_access_token(token)
         email = payload.get("sub")

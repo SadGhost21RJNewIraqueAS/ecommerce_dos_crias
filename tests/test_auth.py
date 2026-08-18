@@ -1,7 +1,11 @@
+import os
 import unittest
+import uuid
 
+from fastapi.testclient import TestClient
 from pydantic import ValidationError
 
+from main import app
 from schemas.usuario import UsuarioCreate
 from segurança import create_access_token, get_password_hash, usuario_tem_permissao, verify_password
 
@@ -30,6 +34,79 @@ class AuthTests(unittest.TestCase):
 
     def test_role_default_cliente(self):
         self.assertEqual("cliente", "cliente")
+
+    def test_seed_admin_teste(self):
+        original_env = os.getenv("APP_ENV")
+        os.environ["APP_ENV"] = "test"
+        try:
+            client = TestClient(app)
+            response = client.post(
+                "/auth/dev/seed-admin",
+                params={
+                    "email": "admin_teste@teste.local",
+                    "username": "admin_teste",
+                    "senha": "admin123",
+                },
+            )
+            self.assertEqual(response.status_code, 201)
+            data = response.json()
+            self.assertEqual(data["role"], "admin")
+            self.assertIn("access_token", data)
+        finally:
+            if original_env is None:
+                os.environ.pop("APP_ENV", None)
+            else:
+                os.environ["APP_ENV"] = original_env
+
+    def test_login_json_usa_username_do_cadastro(self):
+        client = TestClient(app)
+        identificador = uuid.uuid4().hex[:8]
+        username = f"maria_user_{identificador}"
+        email = f"maria_user_{identificador}@example.com"
+
+        registro = client.post(
+            "/auth/registro",
+            json={
+                "nome": "Maria",
+                "username": username,
+                "email": email,
+                "senha": "123456",
+            },
+        )
+        self.assertEqual(registro.status_code, 201)
+
+        login = client.post(
+            "/auth/login",
+            json={"username": username, "password": "123456"},
+        )
+
+        self.assertEqual(login.status_code, 200)
+        self.assertIn("access_token", login.json())
+
+    def test_login_form_usa_username_do_cadastro(self):
+        client = TestClient(app)
+        identificador = uuid.uuid4().hex[:8]
+        username = f"maria_form_{identificador}"
+        email = f"maria_form_{identificador}@example.com"
+
+        registro = client.post(
+            "/auth/registro",
+            json={
+                "nome": "Maria",
+                "username": username,
+                "email": email,
+                "senha": "123456",
+            },
+        )
+        self.assertEqual(registro.status_code, 201)
+
+        login = client.post(
+            "/auth/login/form",
+            data={"username": username, "password": "123456"},
+        )
+
+        self.assertEqual(login.status_code, 200)
+        self.assertIn("access_token", login.json())
 
     def test_usuario_create_nao_aceita_cpf_telefone(self):
         with self.assertRaises(ValidationError):

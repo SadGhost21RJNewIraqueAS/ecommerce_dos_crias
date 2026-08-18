@@ -18,8 +18,8 @@ class UsuarioCreate(BaseModel):
 
 
 class UsuarioLogin(BaseModel):
-    email: EmailStr
-    senha: str = Field(min_length=6, max_length=255)
+    username: str = Field(min_length=3, max_length=50)
+    password: str = Field(min_length=6, max_length=255)
 
 
 class UsuarioResposta(BaseModel):

@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException
+import os
+
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy import select
 
@@ -8,6 +10,14 @@ from schemas.usuario import Token, UsuarioCreate, UsuarioLogin, UsuarioResposta,
 from segurança import create_access_token, get_password_hash, require_roles, verify_password
 
 router = APIRouter(prefix="/auth", tags=["Autenticação"])
+
+
+def buscar_usuario_por_email_ou_username(session, identificador: str):
+    return session.scalar(
+        select(Usuario).where(
+            (Usuario.email == identificador) | (Usuario.username == identificador)
+        )
+    )
 
 
 @router.post("/registro", response_model=UsuarioResposta, status_code=201)
@@ -36,9 +46,9 @@ def registrar_usuario(usuario: UsuarioCreate):
 @router.post("/login", response_model=Token)
 def login(usuario: UsuarioLogin):
     with SessionLocal() as session:
-        usuario_db = session.scalar(select(Usuario).where(Usuario.email == usuario.email))
-        if usuario_db is None or not verify_password(usuario.senha, usuario_db.senha_hash):
-            raise HTTPException(status_code=401, detail="E-mail ou senha inválidos")
+        usuario_db = buscar_usuario_por_email_ou_username(session, usuario.username)
+        if usuario_db is None or not verify_password(usuario.password, usuario_db.senha_hash):
+            raise HTTPException(status_code=401, detail="Username ou senha inválidos")
 
         token = create_access_token({"sub": usuario_db.email, "role": usuario_db.role})
         return {"access_token": token, "token_type": "bearer"}
@@ -47,12 +57,62 @@ def login(usuario: UsuarioLogin):
 @router.post("/login/form", response_model=Token)
 def login_form(form_data: OAuth2PasswordRequestForm = Depends()):
     with SessionLocal() as session:
-        usuario_db = session.scalar(select(Usuario).where(Usuario.email == form_data.username))
+        usuario_db = buscar_usuario_por_email_ou_username(session, form_data.username)
         if usuario_db is None or not verify_password(form_data.password, usuario_db.senha_hash):
-            raise HTTPException(status_code=401, detail="E-mail ou senha inválidos")
+            raise HTTPException(status_code=401, detail="Username ou senha inválidos")
 
         token = create_access_token({"sub": usuario_db.email, "role": usuario_db.role})
         return {"access_token": token, "token_type": "bearer"}
+
+
+@router.post("/dev/seed-admin", status_code=201)
+def criar_admin_teste(
+    email: str = Query(..., description="E-mail do usuário admin de teste"),
+    username: str = Query(..., description="Username do usuário admin de teste"),
+    senha: str = Query("admin123", description="Senha do usuário admin de teste"),
+):
+    ambiente = (os.getenv("APP_ENV") or "prod").lower()
+    if ambiente not in {"dev", "development", "test", "testing"}:
+        raise HTTPException(
+            status_code=403,
+            detail="Este endpoint só pode ser usado em ambiente de desenvolvimento/teste.",
+        )
+
+    with SessionLocal() as session:
+        usuario = session.scalar(
+            select(Usuario).where((Usuario.email == email) | (Usuario.username == username))
+        )
+
+        if usuario is None:
+            usuario = Usuario(
+                nome="Admin Teste",
+                username=username,
+                email=email,
+                senha_hash=get_password_hash(senha),
+                role="admin",
+                is_active=True,
+            )
+            session.add(usuario)
+        else:
+            usuario.nome = usuario.nome or "Admin Teste"
+            usuario.senha_hash = get_password_hash(senha)
+            usuario.role = "admin"
+            usuario.is_active = True
+
+        session.commit()
+        session.refresh(usuario)
+
+        token = create_access_token({"sub": usuario.email, "role": usuario.role})
+        return {
+            "id": usuario.id,
+            "nome": usuario.nome,
+            "username": usuario.username,
+            "email": usuario.email,
+            "role": usuario.role,
+            "is_active": usuario.is_active,
+            "access_token": token,
+            "token_type": "bearer",
+        }
 
 
 @router.post("/usuarios/{usuario_id}/role", response_model=UsuarioResposta)
