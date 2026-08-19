@@ -12,3 +12,4 @@ class Cliente (Base):
     email: Mapped[str]
     tel1: Mapped[int]
     tel2: Mapped[int]
+    foto: Mapped[str | None] = mapped_column(default=None)

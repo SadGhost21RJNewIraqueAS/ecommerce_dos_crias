@@ -1,8 +1,9 @@
 from fastapi import FastAPI, APIRouter
 
-from database import Base, ensure_usuario_columns, engine
+from database import Base, ensure_cliente_columns, ensure_usuario_columns, engine
 from routers import (
     auth,
+    arquivos,
     carrinhos,
     categorias,
     clientes,
@@ -28,6 +29,7 @@ router = APIRouter()
 app = FastAPI(title="BB Garage")
 
 app.include_router(auth.router)
+app.include_router(arquivos.router)
 app.include_router(clientes.router)
 app.include_router(categorias.router)
 app.include_router(produtos.router)
@@ -39,6 +41,7 @@ app.include_router(itens_pedidos.router)
 @app.on_event("startup")
 def startup():
     ensure_usuario_columns(engine)
+    ensure_cliente_columns(engine)
     Base.metadata.create_all(bind=engine)
 
 

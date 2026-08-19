@@ -83,5 +83,16 @@ def ensure_usuario_columns(engine):
         conn.execute(text('DROP TABLE usuario_antigo'))
 
 
+def ensure_cliente_columns(engine):
+    with engine.begin() as conn:
+        insp = inspect(conn)
+        if "cliente" not in insp.get_table_names():
+            return
+
+        colunas = {coluna["name"] for coluna in insp.get_columns("cliente")}
+        if "foto" not in colunas:
+            conn.execute(text("ALTER TABLE cliente ADD COLUMN foto VARCHAR"))
+
+
 class Base(DeclarativeBase):
     pass

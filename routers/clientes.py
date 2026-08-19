@@ -1,4 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException
+from pathlib import Path
+import shutil
+
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from sqlalchemy import select
 
 from database import SessionLocal
@@ -9,6 +12,8 @@ from segurança import require_roles
 
 
 router = APIRouter(prefix="/clientes", tags=["Clientes"])
+PASTA_UPLOAD = Path("uploads")
+PASTA_UPLOAD.mkdir(exist_ok=True)
 
 
 @router.get("/", response_model=list[ClienteResposta])
@@ -46,6 +51,31 @@ def criar_cliente(cliente: ClienteEntrada):
         session.commit()
         session.refresh(novo_cliente)
         return novo_cliente
+
+@router.post("/{cliente_id}/foto")
+def upload_foto_cliente(
+    cliente_id: int,
+    foto: UploadFile = File(...),
+    usuario_logado: Usuario = Depends(require_roles("gerente", "admin")),
+):
+    with SessionLocal() as session:
+        cliente = session.get(Cliente, cliente_id)
+        if cliente is None:
+            raise HTTPException(status_code=404, detail="Cliente não encontrado")
+
+        if foto.content_type not in {"image/jpeg", "image/png"}:
+            raise HTTPException(status_code=400, detail="Envie uma imagem JPEG ou PNG")
+
+        nome = f"cliente_{cliente_id}_{Path(foto.filename or 'foto').name}"
+        destino = PASTA_UPLOAD / nome
+
+        with destino.open("wb") as buffer:
+            shutil.copyfileobj(foto.file, buffer)
+
+        cliente.foto = str(destino)
+        session.commit()
+        session.refresh(cliente)
+        return {"cliente": cliente.nome, "foto": cliente.foto}
 
 
 @router.patch("/{cliente_id}", response_model=ClienteResposta)
