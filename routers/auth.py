@@ -5,6 +5,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy import select
 
 from database import SessionLocal
+from models.cliente import Cliente
 from models.usuario import Usuario
 from schemas.usuario import Token, UsuarioCreate, UsuarioLogin, UsuarioResposta, UsuarioRoleUpdate
 from segurança import create_access_token, get_password_hash, require_roles, verify_password
@@ -18,6 +19,14 @@ def buscar_usuario_por_email_ou_username(session, identificador: str):
             (Usuario.email == identificador) | (Usuario.username == identificador)
         )
     )
+
+
+@router.get("/usuarios", response_model=list[UsuarioResposta])
+def listar_usuarios(
+    usuario_logado: Usuario = Depends(require_roles("gerente", "admin")),
+):
+    with SessionLocal() as session:
+        return session.scalars(select(Usuario)).all()
 
 
 @router.post("/registro", response_model=UsuarioResposta, status_code=201)
@@ -130,6 +139,30 @@ def atualizar_role_usuario(
         session.commit()
         session.refresh(usuario)
         return usuario
+
+
+@router.delete("/usuarios/{usuario_id}", status_code=204)
+def deletar_usuario(
+    usuario_id: int,
+    usuario_logado: Usuario = Depends(require_roles("admin")),
+):
+    with SessionLocal() as session:
+        usuario = session.get(Usuario, usuario_id)
+        if usuario is None:
+            raise HTTPException(status_code=404, detail="Usuário não encontrado")
+
+        cliente_vinculado = session.scalar(
+            select(Cliente).where(Cliente.usuario_id == usuario_id)
+        )
+        if cliente_vinculado is not None:
+            raise HTTPException(
+                status_code=409,
+                detail="Não é possível excluir um usuário vinculado a um cliente.",
+            )
+
+        session.delete(usuario)
+        session.commit()
+        return None
 
 
 @router.get("/admin-only")

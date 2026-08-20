@@ -13,3 +13,4 @@ class Cliente (Base):
     tel1: Mapped[int]
     tel2: Mapped[int | None] = mapped_column(nullable=True)
     foto: Mapped[str | None] = mapped_column(default=None)
+    usuario_id: Mapped[int | None] = mapped_column(ForeignKey("usuario.id"), nullable=True)
