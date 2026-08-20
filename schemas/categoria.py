@@ -11,6 +11,9 @@ class CategoriaResposta(BaseModel):
     nome: str
     descricao: str
 
+    class Config:
+        from_attributes = True
+
 
 class CategoriaPatch(BaseModel):
     nome: str | None = Field(default=None, min_length=3)

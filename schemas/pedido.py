@@ -14,6 +14,9 @@ class PedidoResposta(BaseModel):
     forma_pagamento: str
     status_pagamento: str
 
+    class Config:
+        from_attributes = True
+
 
 class PedidoPatch(BaseModel):
     status: str | None = None

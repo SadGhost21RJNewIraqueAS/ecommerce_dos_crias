@@ -15,6 +15,9 @@ class ItemPedidoResposta(BaseModel):
     quantidade: int
     preco_unitario: float
 
+    class Config:
+        from_attributes = True
+
 
 class ItemPedidoPatch(BaseModel):
     quantidade: int | None = Field(default=None, gt=0)

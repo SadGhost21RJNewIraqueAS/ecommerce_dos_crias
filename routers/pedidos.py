@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException
 from sqlalchemy import select
 
 from database import SessionLocal
+from models.cliente import Cliente
 from models.pedido import Pedido
 from schemas.pedido import PedidoEntrada, PedidoPatch, PedidoResposta
 
@@ -26,15 +27,19 @@ def buscar_por_id_pedido(pedido_id: int):
 
 @router.post("/", response_model=PedidoResposta, status_code=201)
 def criar_pedido(pedido: PedidoEntrada):
-    novo_pedido = Pedido(
-        cliente_id=pedido.cliente_id,
-        status="pendente",
-        forma_pagamento=pedido.forma_pagamento,
-        status_pagamento="pendente",
-        valor_total=0.0,
-        estoque=0,
-    )
     with SessionLocal() as session:
+        cliente = session.get(Cliente, pedido.cliente_id)
+        if cliente is None:
+            raise HTTPException(status_code=404, detail="Cliente não encontrado")
+
+        novo_pedido = Pedido(
+            cliente_id=pedido.cliente_id,
+            status="pendente",
+            forma_pagamento=pedido.forma_pagamento,
+            status_pagamento="pendente",
+            valor_total=0.0,
+            estoque=0,
+        )
         session.add(novo_pedido)
         session.commit()
         session.refresh(novo_pedido)

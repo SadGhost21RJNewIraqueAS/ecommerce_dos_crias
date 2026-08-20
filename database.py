@@ -89,9 +89,43 @@ def ensure_cliente_columns(engine):
         if "cliente" not in insp.get_table_names():
             return
 
-        colunas = {coluna["name"] for coluna in insp.get_columns("cliente")}
+        detalhes_colunas = {coluna["name"]: coluna for coluna in insp.get_columns("cliente")}
+        colunas = set(detalhes_colunas)
         if "foto" not in colunas:
             conn.execute(text("ALTER TABLE cliente ADD COLUMN foto VARCHAR"))
+
+        # SQLite não permite remover a restrição NOT NULL diretamente. Para bases
+        # já existentes, a tabela é recriada preservando seus dados e referências.
+        if not detalhes_colunas["tel2"]["nullable"]:
+            conn.execute(text("PRAGMA foreign_keys=OFF"))
+            conn.execute(
+                text(
+                    """
+                    CREATE TABLE cliente_novo (
+                        id INTEGER NOT NULL PRIMARY KEY,
+                        nome VARCHAR NOT NULL,
+                        cpf INTEGER NOT NULL,
+                        email VARCHAR NOT NULL,
+                        tel1 INTEGER NOT NULL,
+                        tel2 INTEGER,
+                        foto VARCHAR,
+                        usuario_id INTEGER,
+                        FOREIGN KEY(usuario_id) REFERENCES usuario (id)
+                    )
+                    """
+                )
+            )
+            conn.execute(
+                text(
+                    """
+                    INSERT INTO cliente_novo (id, nome, cpf, email, tel1, tel2, foto, usuario_id)
+                    SELECT id, nome, cpf, email, tel1, tel2, foto, usuario_id FROM cliente
+                    """
+                )
+            )
+            conn.execute(text("DROP TABLE cliente"))
+            conn.execute(text("ALTER TABLE cliente_novo RENAME TO cliente"))
+            conn.execute(text("PRAGMA foreign_keys=ON"))
 
 
 class Base(DeclarativeBase):

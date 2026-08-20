@@ -3,7 +3,7 @@ import shutil
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from sqlalchemy import select
-
+from service.email import enviar_confirmacao
 from database import SessionLocal
 from models.cliente import Cliente
 from models.usuario import Usuario
@@ -37,8 +37,9 @@ def buscar_por_id_cliente(
         return cliente
 
 
-@router.post("/", response_model=ClienteResposta, status_code=201)
-def criar_cliente(cliente: ClienteEntrada):
+@router.post("/", response_model=ClienteResposta, status_code=201, 
+             summary="Cria um novo cliente", description="Cria um novo cliente no banco de dados e envia um e-mail de confirmação para o endereço fornecido. Se o serviço de e-mail estiver indisponível, o cliente ainda será criado, mas o e-mail não será enviado.")
+async def criar_cliente(cliente: ClienteEntrada):
     novo_cliente = Cliente(
         nome=cliente.nome,
         cpf=cliente.cpf,
@@ -50,7 +51,10 @@ def criar_cliente(cliente: ClienteEntrada):
         session.add(novo_cliente)
         session.commit()
         session.refresh(novo_cliente)
-        return novo_cliente
+
+    await enviar_confirmacao(novo_cliente.email, novo_cliente.nome)
+
+    return novo_cliente
 
 @router.post("/{cliente_id}/foto")
 def upload_foto_cliente(
@@ -103,4 +107,5 @@ def deletar_cliente(cliente_id: int):
         session.delete(cliente)
         session.commit()
         return None
+
 

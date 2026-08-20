@@ -3,6 +3,7 @@ from datetime import datetime, timedelta, timezone
 from hashlib import pbkdf2_hmac
 
 import jwt
+from dotenv import load_dotenv
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select
@@ -10,20 +11,20 @@ from sqlalchemy import select
 from database import SessionLocal
 from models.usuario import Usuario
 
-SECRET_KEY = os.getenv(
-    "SECRET_KEY",
-    "bb-garage-secret-key-dev-2026-strong-token-secret",
-)
+load_dotenv()
+
+SECRET_KEY = os.getenv("SECRET_KEY", "bb-garage-chave-dev-2026-com-mais-de-32-caracteres")
+
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 15
 
 oauth2_scheme = HTTPBearer()
 
 
-def get_password_hash(password: str) -> str:
+def get_password_hash(senha: str) -> str:
+    """Cria um hash simples para a senha antes de salvar no banco."""
     salt = os.getenv("PASSWORD_SALT", "bb-garage-salt").encode("utf-8")
-    dk = pbkdf2_hmac("sha256", password.encode("utf-8"), salt, 200_000)
-    return dk.hex()
+    return pbkdf2_hmac("sha256", senha.encode("utf-8"), salt, 200_000).hex()
 
 
 def verify_password(password: str, password_hash: str) -> bool:

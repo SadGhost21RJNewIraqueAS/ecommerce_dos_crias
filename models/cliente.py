@@ -11,5 +11,5 @@ class Cliente (Base):
     cpf: Mapped[int]
     email: Mapped[str]
     tel1: Mapped[int]
-    tel2: Mapped[int]
+    tel2: Mapped[int | None] = mapped_column(nullable=True)
     foto: Mapped[str | None] = mapped_column(default=None)

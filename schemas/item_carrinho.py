@@ -14,6 +14,9 @@ class ItemCarrinhoResposta(BaseModel):
     quantidade: int
     valor_unitario: float
 
+    class Config:
+        from_attributes = True
+
 
 class ItemCarrinhoPatch(BaseModel):
     quantidade: int | None = Field(default=None, gt=0)

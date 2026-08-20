@@ -7,6 +7,7 @@ from routers import (
     carrinhos,
     categorias,
     clientes,
+    enderecos,
     itens_carrinhos,
     itens_pedidos,
     pedidos,
@@ -26,11 +27,14 @@ from models import (
 )
 
 router = APIRouter()
-app = FastAPI(title="BB Garage")
+app = FastAPI(title="BB Garage",
+              description="API para gerenciamento de e-commerce da BB Garage",
+              version="1.0")
 
 app.include_router(auth.router)
 app.include_router(arquivos.router)
 app.include_router(clientes.router)
+app.include_router(enderecos.router)
 app.include_router(categorias.router)
 app.include_router(produtos.router)
 app.include_router(carrinhos.router)
@@ -47,9 +51,9 @@ def startup():
 
 @app.get("/")
 def raiz():
-    return {"Mensagem": "API da BB Garage está funcionando! chama bbzada!!!!!"}
+    return {"mensagem": "API da BB Garage está funcionando!"}
 
 
 @app.get("/status")
 def status():
-    return {"status": "OK", "Versão": "3.1"}
+    return {"status": "OK", "versao": "1.0"}

@@ -3,6 +3,7 @@ from sqlalchemy import select
 
 from database import SessionLocal
 from models.carrinho import Carrinho
+from models.cliente import Cliente
 from schemas.carrinho import CarrinhoEntrada, CarrinhoPatch, CarrinhoResposta
 
 
@@ -26,8 +27,12 @@ def buscar_por_id_carrinho(carrinho_id: int):
 
 @router.post("/", response_model=CarrinhoResposta, status_code=201)
 def criar_carrinho(carrinho: CarrinhoEntrada):
-    novo_carrinho = Carrinho(cliente_id=carrinho.cliente_id, valor_total=0.0)
     with SessionLocal() as session:
+        cliente = session.get(Cliente, carrinho.cliente_id)
+        if cliente is None:
+            raise HTTPException(status_code=404, detail="Cliente não encontrado")
+
+        novo_carrinho = Carrinho(cliente_id=carrinho.cliente_id, valor_total=0.0)
         session.add(novo_carrinho)
         session.commit()
         session.refresh(novo_carrinho)

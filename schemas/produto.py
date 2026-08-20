@@ -17,6 +17,9 @@ class ProdutoResposta(BaseModel):
     valor_produto: float
     estoque: int
 
+    class Config:
+        from_attributes = True
+
 
 
 class ProdutoPatch(BaseModel):

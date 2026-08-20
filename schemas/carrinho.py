@@ -10,6 +10,9 @@ class CarrinhoResposta(BaseModel):
     cliente_id: int
     valor_total: float
 
+    class Config:
+        from_attributes = True
+
 
 class CarrinhoPatch(BaseModel):
     valor_total: float | None = Field(default=None, ge=0)
